@@ -38,7 +38,7 @@ def processSlack():
         thread = Thread(target=handleSlackAction, kwargs={'body':body})
     else:
         logging.warning('Received an interactive message from Slack with an unhandled type: ' + body['type'])
-        return Response(status=201)
+        return Response(status=400)
         
     thread.start()
     return Response(status=200)

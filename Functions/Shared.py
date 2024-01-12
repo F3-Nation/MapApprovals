@@ -61,6 +61,9 @@ def GetBlockActionsButton(actionBlock: dict, buttonText: str, buttonStyle: Butto
 
     return actionBlock
 
+ActionValue = Enum('ActionValue', ['Approve', 'Delete', 'RejectDelete'])
+
+
 def buildNewOrUpdateMessage(body: dict) -> list:
     message = []
     
@@ -75,7 +78,7 @@ def buildNewOrUpdateMessage(body: dict) -> list:
     message.append(GetBlockSection('Helpful Links: <' + os.getenv('GRAVITY_FORMS_BASE_URL') + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + body['form_id'] + '|All Unapproved Requests>, <' + os.getenv('GRAVITY_FORMS_BASE_URL') + '/wp-admin/admin.php?page=gf_entries&view=entry&id=' + body['form_id'] + '&lid=' + body['id'] + '|This Request>, <https://www.google.com/maps|Distance between address and lat/long>'))
 
     messageActions = GetBlockActions()
-    messageActions = GetBlockActionsButton(messageActions, 'Approve', ButtonStyle.primary, 'Approve_' + body['id'])
+    messageActions = GetBlockActionsButton(messageActions, 'Approve', ButtonStyle.primary, ActionValue.Approve.name + '_' + body['id'])
     message.append(messageActions)
 
     return message
@@ -88,7 +91,8 @@ def buildDeleteMessage(body: dict) -> list:
     message.append(GetBlockSection('Helpful Links: <' + os.getenv('GRAVITY_FORMS_BASE_URL') + '/wp-admin/admin.php?page=gf_entries&view=entry&id=' + body['6'] + '&lid=' + os.getenv('GRAVITY_FORM_WORKOUT_FORM_ID') + '|AO Entry>'))
 
     messageActions = GetBlockActions()
-    messageActions = GetBlockActionsButton(messageActions, 'Delete (trash)', ButtonStyle.danger, 'Delete_' + body['6'])
+    messageActions = GetBlockActionsButton(messageActions, 'Delete (trash)', ButtonStyle.danger, ActionValue.Delete.name + '_' + body['6'] + '_' + body['id'])
+    messageActions = GetBlockActionsButton(messageActions, 'Reject Delete Request', ButtonStyle.default, ActionValue.RejectDelete.name + '_' + body['id'])
     message.append(messageActions)
 
     return message

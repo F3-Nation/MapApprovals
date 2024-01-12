@@ -46,4 +46,4 @@ def processSlack():
 if __name__ == "__main__":
     logging.info('Starting up app')
     load_dotenv()
-    app.run(port=5000, debug=False)
+    app.run(port=8080, debug=False)

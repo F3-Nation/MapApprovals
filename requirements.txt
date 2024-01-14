@@ -2,3 +2,4 @@ slack_sdk
 flask
 requests
 python-dotenv
+google-cloud-logging

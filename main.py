@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from threading import Thread
 import logging
 import json
+import google.cloud.logging
 from Functions.GravityForms import (
     handleGravityFormsSubmission,
     handleGravityFormsDelete
@@ -19,6 +20,8 @@ from Functions.Shared import (
 )
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
+googleLoggingClient = google.cloud.logging.Client()
+googleLoggingClient.setup_logging()
 
 app = Flask(__name__)
 

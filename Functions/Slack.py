@@ -30,7 +30,7 @@ def handleSlackAction(body: dict):
 
         submissionType = isNewOrUpdate(entry)
 
-        logging.info('For entry ' + entryId + '.Set is_approved and is_read to 1. Updating entry.')
+        logging.info('For entry ' + entryId + ', set is_approved and is_read to 1. Updating entry.')
         success = updateEntry(entryId, entry)
         if success:
             postMessageToMapChannel(text='Map Request approved by ' + user + '.', thread_ts=body['container']['message_ts'])

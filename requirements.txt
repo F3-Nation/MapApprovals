@@ -3,3 +3,4 @@ flask
 requests
 python-dotenv
 google-cloud-logging
+googlemaps

@@ -7,9 +7,9 @@ import json
 import google.cloud.logging
 from handlers.map_approval import MapApprovalHandler
 
-logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(message)s')
+logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 googleLoggingClient = google.cloud.logging.Client()
-#googleLoggingClient.setup_logging()
+googleLoggingClient.setup_logging()
 
 map_approval = MapApprovalHandler()
 

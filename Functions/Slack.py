@@ -43,7 +43,7 @@ class Slack:
         if None == blocks:
             blocks = interactivePayload['message']['blocks']
         
-        self._client.chat_update(channel=channel, ts=ts, blocks=blocks)
+        self._client.chat_update(channel=channel, ts=ts, blocks=blocks, text=text)
     
     def convert_ts_to_utc(ts: str) -> str:
         return datetime.fromtimestamp(float(ts)).strftime('%y-%m-%d %H:%M:%S UTC')

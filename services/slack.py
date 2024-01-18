@@ -46,7 +46,7 @@ class Slack:
         self._client.chat_update(channel=channel, ts=ts, blocks=blocks, text=text)
     
     def convert_ts_to_utc(ts: str) -> str:
-        return datetime.fromtimestamp(float(ts)).strftime('%y-%m-%d %H:%M:%S UTC')
+        return datetime.fromtimestamp(float(ts)).strftime('%Y-%m-%d %H:%M:%S UTC')
 
     def start_blocks() -> list:
         return []

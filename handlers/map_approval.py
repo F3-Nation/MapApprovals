@@ -1,15 +1,14 @@
 import logging
-from functions.slack import Slack, Action_Value, Button_Style
-from functions.gravity_forms import GravityForms
-from functions.shared import (
-    send_email
-)
+from services.slack import Slack, Action_Value, Button_Style
+from services.gravity_forms import GravityForms
+from services.smtp import SMTP
 
 class MapApprovalHandler:
     
     def __init__(self) -> None:
         self.gravity_forms = GravityForms()
         self.slack = Slack()
+        self.smtp = SMTP()
 
     def handle_gravity_forms_submission(self, entry: dict):
         logging.info('Handling Gravity Forms Workout.')
@@ -112,17 +111,36 @@ class MapApprovalHandler:
             entry = self.gravity_forms.get_entry(entryId) # Get latest version
             entry['is_approved'] = "1"
             entry['is_read'] = "1"
-
-            submissionType = GravityForms.is_new_or_update(entry)
             
-            logging.info('For entry ' + entryId + ', set is_approved and is_read to 1. Updating entry.')
+            logging.info('For entry ' + entryId + ', setting is_approved and is_read to 1. Updating entry.')
             success = self.gravity_forms.update_entry(entryId, entry)
             if success:
                 statusBlock = Slack.get_block_section('Request approved by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_utc(body['actions'][0]['action_ts']))
                 blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
                 self.slack.replace_msg(interactivePayload=body, blocks=blocks)
-                send_email('Map Request Approved', [entry['19']], '<div style="display: none; max-height: 0px; overflow: hidden;">' + submissionType + ' -> ' + entry['2'] + ' @ ' + entry['21'] + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>Your map request has been approved and should show up on <a href="https://map.f3nation.com">the map</a> within the hour. If you see a mistake, use this <a href="' + self.gravity_forms.BASE_URL + '/map-changes">link</a> to submit a correction. Reply to this email with any other issues.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + entry['21'] + '</td></tr><tr><td><b>Workout Name</b></td><td>' + entry['2'] + '</td></tr><tr><td><b>Street 1</b></td><td>' + entry['1.1'] + '</td></tr><tr><td><b>Street 2</b></td><td>' + entry['1.2'] + '</td></tr><tr><td><b>City</b></td><td>' + entry['1.3'] + '</td></tr><tr><td><b>State</b></td><td>' + entry['1.4'] + '</td></tr><tr><td><b>ZIP Code</b></td><td>' + entry['1.5'] + '</td></tr><tr><td><b>United States</b></td><td>' + entry['1.6'] + '</td></tr><tr><td><b>Latitude</b></td><td>' + entry['13'] + '</td></tr><tr><td><b>Longitude</b></td><td>' + entry['12'] + '</td></tr><tr><td><b>Weekday</b></td><td>' + entry['14'] + '</td></tr><tr><td><b>Time</b></td><td>' + entry['4'] + '</td></tr><tr><td><b>Type</b></td><td>' + entry['5'] + '</td></tr><tr><td><b>Region Website</b></td><td>' + entry['17'] + '</td></tr><tr><td><b>Region Logo</b></td><td>' + entry['16'] + '</td></tr><tr><td><b>Notes</b></td><td>' + entry['15'] + '</td></tr><tr><td><b>Submitter</b></td><td>' + entry['18'] + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + entry['19'] + '</td></tr><tr><td><b>Request Created</b></td><td>' + entry['date_created'] + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + entry['date_updated'] + ' UTC</td></tr></table>')
-                self.slack.post_msg_to_channel(text='Map Request approved by ' + user + '.', thread_ts=body['container']['message_ts'])
+                
+                submissionType = GravityForms.is_new_or_update(entry)
+                region = entry['21']
+                workout_name = entry['2']
+                street_1 = entry['1.1']
+                street_2 = entry['1.2']
+                city = entry['1.3']
+                state = entry['1.4']
+                zip_code = entry['1.5']
+                country = entry['1.6']
+                latitude = entry['13']
+                longitude = entry['12']
+                weekday = entry['14']
+                time = entry['4']
+                workout_type = entry['5']
+                website = entry['17']
+                logo = entry['16']
+                notes = entry['15']
+                submitter_name = entry['18']
+                submitter_email = entry['19']
+                
+                self.smtp.send_email('Map Request Approved', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">' + submissionType + ' -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>Your map request has been approved and should show up on <a href="https://map.f3nation.com">the map</a> within the hour. If you see a mistake, use this <a href="' + self.gravity_forms.BASE_URL + '/map-changes">link</a> to submit a correction. Reply to this email with any other issues.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Street 1</b></td><td>' + street_1 + '</td></tr><tr><td><b>Street 2</b></td><td>' + street_2 + '</td></tr><tr><td><b>City</b></td><td>' + city + '</td></tr><tr><td><b>State</b></td><td>' + state + '</td></tr><tr><td><b>ZIP Code</b></td><td>' + zip_code + '</td></tr><tr><td><b>United States</b></td><td>' + country + '</td></tr><tr><td><b>Latitude</b></td><td>' + latitude + '</td></tr><tr><td><b>Longitude</b></td><td>' + longitude + '</td></tr><tr><td><b>Weekday</b></td><td>' + weekday + '</td></tr><tr><td><b>Time</b></td><td>' + time + '</td></tr><tr><td><b>Type</b></td><td>' + workout_type + '</td></tr><tr><td><b>Region Website</b></td><td>' + website + '</td></tr><tr><td><b>Region Logo</b></td><td>' + logo + '</td></tr><tr><td><b>Notes</b></td><td>' + notes + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + entry['date_created'] + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + entry['date_updated'] + ' UTC</td></tr><tr><td><b>Workout ID</b></td><td>' + entryId + '</td></tr></table>')
+                
                 logging.info('Entry updated, action logged to Slack thread, requestor emailed.')
             else:
                 logging.error('Could not approve entry ' + entryId)
@@ -134,19 +152,39 @@ class MapApprovalHandler:
             entry = self.gravity_forms.get_entry(entryId)
 
             if entry['status'] == 'trash':
-                logging.warning('Entry ' + entryId + ' has already been deleted. No action will be taken.')
+                logging.warning('Entry ' + entryId + ' has already been deleted. No action will be taken on workout. Updating Slack post to remove buttons.')
+                
+                statusBlock = Slack.get_block_section('This workout was already deleted. Sorry about that. You should be good to go.')
+                blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
+                self.slack.replace_msg(interactivePayload=body, blocks=blocks)
                 return
 
-            logging.info('Sending delete command for entry ' + entryId + '.')
+            deleteEntryId = action_value_pieces[2] # Entry ID of the form submitted to request the deletion, not the ID of the workout.
+            deleteEntry = self.gravity_forms.get_entry(deleteEntryId)
+
+            logging.info('Sending delete command for workout entry ' + entryId + '.')
             success = self.gravity_forms.trash_entry(entryId)
             if success:
-                self.slack.post_msg_to_channel(text='Workout sent to trash by ' + user + '.', thread_ts=body['container']['message_ts'])
-                logging.info('Entry deleted, action logged to Slack thread.')
+                statusBlock = Slack.get_block_section('Workout sent to trash by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_utc(body['actions'][0]['action_ts']))
+                blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
+                self.slack.replace_msg(interactivePayload=body, blocks=blocks)
+                
+                region = deleteEntry['7']
+                workout_name = deleteEntry['1']
+                reason = deleteEntry['5']
+                submitter_name = deleteEntry['4']
+                submitter_email = deleteEntry['3']
+
+                weekday = entry['14']
+                time = entry['4']
+                workout_type = entry['5']
+                
+                self.smtp.send_email('Map Pin Deleted', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">Delete -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>Your request to remove a workout from <a href="https://map.f3nation.com">the map</a> has been approved; it should disappear within the hour. If you deleted this by mistake, or have any other issues, please reply to this email.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Weekday</b></td><td>' + weekday + '</td></tr><tr><td><b>Time</b></td><td>' + time + '</td></tr><tr><td><b>Type</b></td><td>' + workout_type + '</td></tr><tr><td><b>Reason for deletion</b></td><td>' + reason + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + entry['date_created'] + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + entry['date_updated'] + ' UTC</td></tr><tr><td><b>Workout ID</b></td><td>' + entryId + '</td></tr></table>')
+
+                logging.info('Entry deleted, action logged to Slack, requestor emailed.')
             else:
                 self.slack.post_msg_to_channel(text='Workout deletion failed! ' + user + ' tried to send it to trash, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
 
-            deleteEntryId = action_value_pieces[2]
-            deleteEntry = self.gravity_forms.get_entry(deleteEntryId)
             deleteEntry['is_approved'] = "1"
             deleteEntry['is_read'] = "1"
             logging.info('Marking delete request entry ' + deleteEntryId + ' as read and approved.')
@@ -158,8 +196,19 @@ class MapApprovalHandler:
             logging.info('Sending delete command for delete request entry ' + entryId + '.')
             success = self.gravity_forms.trash_entry(entryId)
             if success:
-                self.slack.post_msg_to_channel(text='Workout will not be sent to trash, according to ' + user + '.', thread_ts=body['container']['message_ts'])
-                logging.info('Delete request entry sent to trash, action logged to Slack thread.')
+                statusBlock = Slack.get_block_section('Workout will not be sent to trash, as indicated by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_utc(body['actions'][0]['action_ts']))
+                blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
+                self.slack.replace_msg(interactivePayload=body, blocks=blocks)
+
+                region = entry['7']
+                workout_name = entry['1']
+                reason = entry['5']
+                submitter_name = entry['4']
+                submitter_email = entry['3']
+                
+                self.smtp.send_email('Map Pin NOT Deleted', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">Delete -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>A map admin has opted <u>NOT</u> to delete this workout. If this is a surprise, and you would like to find out more, please reply to this email.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Reason for deletion</b></td><td>' + reason + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + entry['date_created'] + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + entry['date_updated'] + ' UTC</td></tr></table>')
+
+                logging.info('Delete request entry (not workout) sent to trash, action logged to Slack, requestor emailed.')
             else:
                 self.slack.post_msg_to_channel(text='Workout delete rejection failed! ' + user + ' tried to not send it to trash, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
 

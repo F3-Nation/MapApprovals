@@ -43,6 +43,7 @@ class MapApprovalHandler:
         notes = entry['15']
         submitter_name = entry['18']
         submitter_email = entry['19']
+        date_created = GravityForms.convert_date_to_et(entry['date_created'])
 
         full_address = street_1 + ' ' + street_2 + ' ' + city + ' ' + state + ' ' + zip_code + ' ' + country
         lat_long_address = self.map.get_address_from_latlong(latitude=latitude, longitude=longitude)
@@ -51,7 +52,7 @@ class MapApprovalHandler:
         
         blocks = Slack.start_blocks()
         blocks.append(Slack.get_block_header('Map Request: ' + submissionType))
-        blocks.append(Slack.get_block_section('*Region:* ' + region + '\n*Workout Name:* ' + workout_name + '\n\n*Street 1:* ' + street_1 + '\n*Street 2:* ' + street_2 + '\n*City:* ' + city + '\n*State:* ' + state + '\n*ZIP Code:* ' + zip_code + '\n*Country:* ' + country + '\n\n*Latitude:* \'' + latitude + '\'\n*Longitude:* \'' + longitude + '\'\n*Address at Lat/Long:* ' + lat_long_address + '\n*Lat/Long to Address Distance:* ' + pin_to_address_distance + '\n\n*Weekday:* ' + weekday + '\n*Time:* ' + time + '\n*Type:* ' + workout_type + '\n\n*Region Website:* ' + website + '\n*Region Logo:* ' + logo + '\n\n*Notes:* ' + notes + '\n\n*Submitter:* ' + submitter_name + '\n*Submitter Email:* ' + submitter_email + '\n*Original Submission (UTC):* ' + entry['date_created']))
+        blocks.append(Slack.get_block_section('*Region:* ' + region + '\n*Workout Name:* ' + workout_name + '\n\n*Street 1:* ' + street_1 + '\n*Street 2:* ' + street_2 + '\n*City:* ' + city + '\n*State:* ' + state + '\n*ZIP Code:* ' + zip_code + '\n*Country:* ' + country + '\n\n*Latitude:* \'' + latitude + '\'\n*Longitude:* \'' + longitude + '\'\n*Address at Lat/Long:* ' + lat_long_address + '\n*Lat/Long to Address Distance:* ' + pin_to_address_distance + '\n\n*Weekday:* ' + weekday + '\n*Time:* ' + time + '\n*Type:* ' + workout_type + '\n\n*Region Website:* ' + website + '\n*Region Logo:* ' + logo + '\n\n*Notes:* ' + notes + '\n\n*Submitter:* ' + submitter_name + '\n*Submitter Email:* ' + submitter_email + '\n*Original Submission (UTC):* ' + date_created))
         blocks.append(Slack.get_block_section('Helpful Links: <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + entry['form_id'] + '|All Unapproved Requests>, <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&view=entry&id=' + entry['form_id'] + '&lid=' + entry['id'] + '|This Request>, <' + direction_url + '|Directions from address to lat/long>'))
 
         blocks.append(Slack.get_divider())
@@ -124,7 +125,7 @@ class MapApprovalHandler:
             logging.info('For entry ' + entryId + ', setting is_approved and is_read to 1. Updating entry.')
             success = self.gravity_forms.update_entry(entryId, entry)
             if success:
-                statusBlock = Slack.get_block_section('Request approved by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_utc(body['actions'][0]['action_ts']))
+                statusBlock = Slack.get_block_section('Request approved by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_et(body['actions'][0]['action_ts']))
                 blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
                 self.slack.replace_msg(interactivePayload=body, blocks=blocks)
                 
@@ -147,8 +148,10 @@ class MapApprovalHandler:
                 notes = entry['15']
                 submitter_name = entry['18']
                 submitter_email = entry['19']
+                date_created = GravityForms.convert_date_to_et(entry['date_created'])
+                date_updated = GravityForms.convert_date_to_et(entry['date_updated'])
                 
-                self.smtp.send_email('Map Request Approved', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">' + submissionType + ' -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>Your map request has been approved and should show up on <a href="https://map.f3nation.com">the map</a> within the hour. If you see a mistake, use this <a href="' + self.gravity_forms.BASE_URL + '/map-changes">link</a> to submit a correction. Reply to this email with any other issues.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Street 1</b></td><td>' + street_1 + '</td></tr><tr><td><b>Street 2</b></td><td>' + street_2 + '</td></tr><tr><td><b>City</b></td><td>' + city + '</td></tr><tr><td><b>State</b></td><td>' + state + '</td></tr><tr><td><b>ZIP Code</b></td><td>' + zip_code + '</td></tr><tr><td><b>United States</b></td><td>' + country + '</td></tr><tr><td><b>Latitude</b></td><td>' + latitude + '</td></tr><tr><td><b>Longitude</b></td><td>' + longitude + '</td></tr><tr><td><b>Weekday</b></td><td>' + weekday + '</td></tr><tr><td><b>Time</b></td><td>' + time + '</td></tr><tr><td><b>Type</b></td><td>' + workout_type + '</td></tr><tr><td><b>Region Website</b></td><td>' + website + '</td></tr><tr><td><b>Region Logo</b></td><td>' + logo + '</td></tr><tr><td><b>Notes</b></td><td>' + notes + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + entry['date_created'] + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + entry['date_updated'] + ' UTC</td></tr><tr><td><b>Workout ID</b></td><td>' + entryId + '</td></tr></table>')
+                self.smtp.send_email('Map Request Approved', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">' + submissionType + ' -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>Your map request has been approved and should show up on <a href="https://map.f3nation.com">the map</a> within the hour. If you see a mistake, use this <a href="' + self.gravity_forms.BASE_URL + '/map-changes">link</a> to submit a correction. Reply to this email with any other issues.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Street 1</b></td><td>' + street_1 + '</td></tr><tr><td><b>Street 2</b></td><td>' + street_2 + '</td></tr><tr><td><b>City</b></td><td>' + city + '</td></tr><tr><td><b>State</b></td><td>' + state + '</td></tr><tr><td><b>ZIP Code</b></td><td>' + zip_code + '</td></tr><tr><td><b>United States</b></td><td>' + country + '</td></tr><tr><td><b>Latitude</b></td><td>' + latitude + '</td></tr><tr><td><b>Longitude</b></td><td>' + longitude + '</td></tr><tr><td><b>Weekday</b></td><td>' + weekday + '</td></tr><tr><td><b>Time</b></td><td>' + time + '</td></tr><tr><td><b>Type</b></td><td>' + workout_type + '</td></tr><tr><td><b>Region Website</b></td><td>' + website + '</td></tr><tr><td><b>Region Logo</b></td><td>' + logo + '</td></tr><tr><td><b>Notes</b></td><td>' + notes + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + date_created + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + date_updated + ' UTC</td></tr><tr><td><b>Workout ID</b></td><td>' + entryId + '</td></tr></table>')
                 
                 logging.info('Entry updated, action logged to Slack thread, requestor emailed.')
             else:
@@ -174,7 +177,7 @@ class MapApprovalHandler:
             logging.info('Sending delete command for workout entry ' + entryId + '.')
             success = self.gravity_forms.trash_entry(entryId)
             if success:
-                statusBlock = Slack.get_block_section('Workout sent to trash by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_utc(body['actions'][0]['action_ts']))
+                statusBlock = Slack.get_block_section('Workout sent to trash by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_et(body['actions'][0]['action_ts']))
                 blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
                 self.slack.replace_msg(interactivePayload=body, blocks=blocks)
                 
@@ -183,12 +186,14 @@ class MapApprovalHandler:
                 reason = deleteEntry['5']
                 submitter_name = deleteEntry['4']
                 submitter_email = deleteEntry['3']
+                date_created = GravityForms.convert_date_to_et(deleteEntry['date_created'])
+                date_updated = GravityForms.convert_date_to_et(deleteEntry['date_updated'])
 
                 weekday = entry['14']
                 time = entry['4']
                 workout_type = entry['5']
                 
-                self.smtp.send_email('Map Pin Deleted', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">Delete -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>Your request to remove a workout from <a href="https://map.f3nation.com">the map</a> has been approved; it should disappear within the hour. If you deleted this by mistake, or have any other issues, please reply to this email.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Weekday</b></td><td>' + weekday + '</td></tr><tr><td><b>Time</b></td><td>' + time + '</td></tr><tr><td><b>Type</b></td><td>' + workout_type + '</td></tr><tr><td><b>Reason for deletion</b></td><td>' + reason + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + deleteEntry['date_created'] + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + deleteEntry['date_updated'] + ' UTC</td></tr><tr><td><b>Workout ID</b></td><td>' + entryId + '</td></tr></table>')
+                self.smtp.send_email('Map Pin Deleted', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">Delete -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>Your request to remove a workout from <a href="https://map.f3nation.com">the map</a> has been approved; it should disappear within the hour. If you deleted this by mistake, or have any other issues, please reply to this email.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Weekday</b></td><td>' + weekday + '</td></tr><tr><td><b>Time</b></td><td>' + time + '</td></tr><tr><td><b>Type</b></td><td>' + workout_type + '</td></tr><tr><td><b>Reason for deletion</b></td><td>' + reason + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + date_created + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + date_updated + ' UTC</td></tr><tr><td><b>Workout ID</b></td><td>' + entryId + '</td></tr></table>')
 
                 logging.info('Entry deleted, action logged to Slack, requestor emailed.')
             else:
@@ -205,7 +210,7 @@ class MapApprovalHandler:
             logging.info('Sending delete command for delete request entry ' + entryId + '.')
             success = self.gravity_forms.trash_entry(entryId)
             if success:
-                statusBlock = Slack.get_block_section('Workout will not be sent to trash, as indicated by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_utc(body['actions'][0]['action_ts']))
+                statusBlock = Slack.get_block_section('Workout will not be sent to trash, as indicated by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_et(body['actions'][0]['action_ts']))
                 blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
                 self.slack.replace_msg(interactivePayload=body, blocks=blocks)
 
@@ -214,8 +219,10 @@ class MapApprovalHandler:
                 reason = entry['5']
                 submitter_name = entry['4']
                 submitter_email = entry['3']
+                date_created = GravityForms.convert_date_to_et(entry['date_created'])
+                date_updated = GravityForms.convert_date_to_et(entry['date_updated'])
                 
-                self.smtp.send_email('Map Pin NOT Deleted', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">Delete -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>A map admin has opted <u>NOT</u> to delete this workout. If this is a surprise, and you would like to find out more, please reply to this email.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Reason for deletion</b></td><td>' + reason + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + entry['date_created'] + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + entry['date_updated'] + ' UTC</td></tr></table>')
+                self.smtp.send_email('Map Pin NOT Deleted', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">Delete -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>A map admin has opted <u>NOT</u> to delete this workout. If this is a surprise, and you would like to find out more, please reply to this email.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Reason for deletion</b></td><td>' + reason + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + date_created + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + date_updated + ' UTC</td></tr></table>')
 
                 logging.info('Delete request entry (not workout) sent to trash, action logged to Slack, requestor emailed.')
             else:

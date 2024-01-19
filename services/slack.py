@@ -3,6 +3,7 @@ import os
 from enum import Enum
 from slack_sdk import WebClient
 from datetime import datetime
+import pytz
 
 class Action_Value(Enum):
     Approve = 0
@@ -45,8 +46,10 @@ class Slack:
         
         self._client.chat_update(channel=channel, ts=ts, blocks=blocks, text=text)
     
-    def convert_ts_to_utc(ts: str) -> str:
-        return datetime.fromtimestamp(float(ts)).strftime('%Y-%m-%d %H:%M:%S UTC')
+    def convert_ts_to_et(ts: str) -> str:
+        """Takes the Slack timestamp, which is in UTC Epoch, and converts it to a string based in Eastern Time."""
+        
+        return datetime.fromtimestamp(float(ts)).astimezone(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d %H:%M:%S ET')
 
     def start_blocks() -> list:
         return []

@@ -1,5 +1,7 @@
 import os
 import requests
+import datetime
+import pytz
 
 class GravityForms:
     BASE_URL = os.getenv('GRAVITY_FORMS_BASE_URL')
@@ -47,3 +49,8 @@ class GravityForms:
             return 'New'
         else:
             return 'Update'
+        
+    def convert_date_to_et(date: str) -> str:
+        """Takes the Gravity Forms timestamp, which is in UTC, and converts it to a string based in Eastern Time."""
+        
+        return datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc).astimezone(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d %H:%M:%S ET')

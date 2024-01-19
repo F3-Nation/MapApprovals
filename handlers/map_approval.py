@@ -2,6 +2,7 @@ import logging
 from services.slack import Slack, Action_Value, Button_Style
 from services.gravity_forms import GravityForms
 from services.smtp import SMTP
+from services.map import Map
 
 class MapApprovalHandler:
     
@@ -9,6 +10,7 @@ class MapApprovalHandler:
         self.gravity_forms = GravityForms()
         self.slack = Slack()
         self.smtp = SMTP()
+        self.map = Map()
 
     def handle_gravity_forms_submission(self, entry: dict):
         logging.info('Handling Gravity Forms Workout.')
@@ -42,16 +44,23 @@ class MapApprovalHandler:
         submitter_name = entry['18']
         submitter_email = entry['19']
 
+        full_address = street_1 + ' ' + street_2 + ' ' + city + ' ' + state + ' ' + zip_code + ' ' + country
+        lat_long_address = self.map.get_address_from_latlong(latitude=latitude, longitude=longitude)
+        pin_to_address_distance = self.map.get_distance_between_address_and_latlong(address=full_address, latitude=latitude, longitude=longitude)
+        direction_url = Map.get_directions_url(origin=full_address, destination=latitude + ',' + longitude)
+        
         blocks = Slack.start_blocks()
         blocks.append(Slack.get_block_header('Map Request: ' + submissionType))
-        blocks.append(Slack.get_block_section('*Region:* ' + region + '\n*Workout Name:* ' + workout_name + '\n\n*Street 1:* ' + street_1 + '\n*Street 2:* ' + street_2 + '\n*City:* ' + city + '\n*State:* ' + state + '\n*ZIP Code:* ' + zip_code + '\n*Country:* ' + country + '\n\n*Latitude:* ' + latitude + '\n*Longitude:* ' + longitude + '\n_Single quotes have been added to help see white space._\nAddress at Lat/Long: ' + 'Insert address here' + '\n\n*Weekday:* ' + weekday + '\n*Time:* ' + time + '\n*Type:* ' + workout_type + '\n\n*Region Website:* ' + website + '\n*Region Logo:* ' + logo + '\n\n*Notes:* ' + notes + '\n\n*Submitter:* ' + submitter_name + '\n*Submitter Email:* ' + submitter_email + '\n*Original Submission (UTC):* ' + entry['date_created']))
-        blocks.append(Slack.get_block_section('Helpful Links: <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + entry['form_id'] + '|All Unapproved Requests>, <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&view=entry&id=' + entry['form_id'] + '&lid=' + entry['id'] + '|This Request>, <https://www.google.com/maps|Distance between address and lat/long>'))
+        blocks.append(Slack.get_block_section('*Region:* ' + region + '\n*Workout Name:* ' + workout_name + '\n\n*Street 1:* ' + street_1 + '\n*Street 2:* ' + street_2 + '\n*City:* ' + city + '\n*State:* ' + state + '\n*ZIP Code:* ' + zip_code + '\n*Country:* ' + country + '\n\n*Latitude:* \'' + latitude + '\'\n*Longitude:* \'' + longitude + '\'\n*Address at Lat/Long:* ' + lat_long_address + '\n*Lat/Long to Address Distance:* ' + pin_to_address_distance + '\n\n*Weekday:* ' + weekday + '\n*Time:* ' + time + '\n*Type:* ' + workout_type + '\n\n*Region Website:* ' + website + '\n*Region Logo:* ' + logo + '\n\n*Notes:* ' + notes + '\n\n*Submitter:* ' + submitter_name + '\n*Submitter Email:* ' + submitter_email + '\n*Original Submission (UTC):* ' + entry['date_created']))
+        blocks.append(Slack.get_block_section('Helpful Links: <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + entry['form_id'] + '|All Unapproved Requests>, <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&view=entry&id=' + entry['form_id'] + '&lid=' + entry['id'] + '|This Request>, <' + direction_url + '|Directions from address to lat/long>'))
 
         blocks.append(Slack.get_divider())
 
         blockActions = Slack.get_block_actions()
         blockActions = Slack.get_block_actions_button(blockActions, 'Approve', Button_Style.primary, Action_Value.Approve.name + '_' + entry['id'])
         blocks.append(blockActions)
+
+        blocks.append(Slack.get_divider())
 
         self.slack.post_msg_to_channel('Map Request from ' + region, blocks)
     
@@ -179,7 +188,7 @@ class MapApprovalHandler:
                 time = entry['4']
                 workout_type = entry['5']
                 
-                self.smtp.send_email('Map Pin Deleted', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">Delete -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>Your request to remove a workout from <a href="https://map.f3nation.com">the map</a> has been approved; it should disappear within the hour. If you deleted this by mistake, or have any other issues, please reply to this email.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Weekday</b></td><td>' + weekday + '</td></tr><tr><td><b>Time</b></td><td>' + time + '</td></tr><tr><td><b>Type</b></td><td>' + workout_type + '</td></tr><tr><td><b>Reason for deletion</b></td><td>' + reason + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + entry['date_created'] + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + entry['date_updated'] + ' UTC</td></tr><tr><td><b>Workout ID</b></td><td>' + entryId + '</td></tr></table>')
+                self.smtp.send_email('Map Pin Deleted', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">Delete -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>Your request to remove a workout from <a href="https://map.f3nation.com">the map</a> has been approved; it should disappear within the hour. If you deleted this by mistake, or have any other issues, please reply to this email.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Weekday</b></td><td>' + weekday + '</td></tr><tr><td><b>Time</b></td><td>' + time + '</td></tr><tr><td><b>Type</b></td><td>' + workout_type + '</td></tr><tr><td><b>Reason for deletion</b></td><td>' + reason + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + deleteEntry['date_created'] + ' UTC</td></tr><tr><td><b>Request Updated</b></td><td>' + deleteEntry['date_updated'] + ' UTC</td></tr><tr><td><b>Workout ID</b></td><td>' + entryId + '</td></tr></table>')
 
                 logging.info('Entry deleted, action logged to Slack, requestor emailed.')
             else:
@@ -217,20 +226,23 @@ class MapApprovalHandler:
 
         logging.info('Done handling Slack Action.')
     
-    def handleCheckUnapprovedTrigger(self) -> None:
+    def handle_unapproved_workout_check(self, alert_on_no_unapproved: bool) -> None:
         logging.info('Handline Check Unapproved.')
         unapprovedUpdateCount = self.gravity_forms.get_unapproved_count(self.gravity_forms.FORM_ID_WORKOUT)
         unapprovedDeleteCount = self.gravity_forms.get_unapproved_count(self.gravity_forms.FORM_ID_WORKOUT_DELETE)
 
         if unapprovedUpdateCount == 0 & unapprovedDeleteCount == 0:
             logging.info('No unapproved.')
+            if alert_on_no_unapproved:
+                self.slack.post_msg_to_channel(text='There are no unapproved requests pending.')
+            
             return
         
         message = []
         if unapprovedUpdateCount > 0:
-            message.append(str(unapprovedUpdateCount) + ' updates')
+            message.append(str(unapprovedUpdateCount) + ' <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + self.gravity_forms.FORM_ID_WORKOUT + '|updates>')
         if unapprovedDeleteCount > 0:
-            message.append(str(unapprovedDeleteCount) + ' deletes')
+            message.append(str(unapprovedDeleteCount) + ' <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + self.gravity_forms.FORM_ID_WORKOUT_DELETE + '|deletes>')
         
-        self.slack.post_msg_to_channel(text='<!channel>, there are unapproved requests: ' + ', '.join(message) + '. <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + self.gravity_forms.FORM_ID_WORKOUT + '|Link>')
+        self.slack.post_msg_to_channel(text='<!channel>, there are unapproved requests: ' + ', '.join(message) + '.')
         logging.info('Sent unapproved counts to Slack. Done handling.')

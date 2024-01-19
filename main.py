@@ -28,21 +28,21 @@ def favicon():
 
 
 @app.route('/webhooks/gravityforms/workout', methods=['POST'])
-def processGravityFormsWorkout():
+def process_gravity_forms_workout():
     thread = Thread(target=map_approval.handle_gravity_forms_submission, kwargs={'entry':request.json})
     thread.start()
     return Response(status=200)
 
 
 @app.route('/webhooks/gravityforms/workoutdelete', methods=['POST'])
-def processGravityFormsWorkoutDelete():
+def process_gravity_forms_workout_delete():
     thread = Thread(target=map_approval.handle_gravity_forms_delete, kwargs={'entry':request.json})
     thread.start()
     return Response(status=200)
 
 
 @app.route('/webhooks/slack', methods=['POST'])
-def processSlack():
+def process_slack():
     body = json.loads(request.form['payload'])
 
     if body['type'] == 'block_actions':
@@ -55,9 +55,12 @@ def processSlack():
     return Response(status=200)
 
 
-@app.route('/triggers/checkunapproved')
-def checkForUnapprovedWorkouts():
-    thread = Thread(target=map_approval.handleCheckUnapprovedTrigger)
+@app.route('/webhooks/checkunapproved', methods=['POST'])
+def process_unapproved_workout_check():
+    params = request.args
+    alert_on_no_unapproved = len(params) > 0 and 'alertonnounapproved' in params and params['alertonnounapproved']
+
+    thread = Thread(target=map_approval.handle_unapproved_workout_check, kwargs={'alert_on_no_unapproved':alert_on_no_unapproved})
     thread.start()
     return Response(status=200)
 

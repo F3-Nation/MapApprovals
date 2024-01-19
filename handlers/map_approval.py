@@ -97,6 +97,8 @@ class MapApprovalHandler:
         blockActions = Slack.get_block_actions_button(blockActions, 'Reject Delete Request', Button_Style.default, Action_Value.RejectDelete.name + '_' + entry['id'])
         blocks.append(blockActions)
 
+        blocks.append(Slack.get_divider())
+
         self.slack.post_msg_to_channel('Map Delete Request from ' + region, blocks)
 
     

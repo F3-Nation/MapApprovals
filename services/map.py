@@ -21,16 +21,32 @@ class Map:
 
         return address['formatted_address']
     
-    def get_distance_between_address_and_latlong(self, address: str, latitude: str, longitude: str) -> str:
+    def get_feet_between_address_and_latlong(self, address: str, latitude: str, longitude: str) -> float:
         directions = self._client.directions(origin=address, destination=latitude + ',' + longitude, mode='walking')
 
         if len(directions) == 0:
             return "Could not find walkable path."
         
-        return directions[0]['legs'][0]['distance']['text']
+        distance = directions[0]['legs'][0]['distance']['text']
+        distancePieces = distance.split(' ')
+        distanceValue = round(float(distancePieces[0]))
+        distanceUnits = distancePieces[1]
+        if  distanceUnits == 'mi':
+            distanceValue = '{0:,.0f}'.format(distanceValue * 5280)
+            distanceUnits = 'ft'
+        
+        return distanceValue
+    
+    def _get_map_safe_str(str: str) -> str:
+        return str.replace('+', '%2B').replace(' ', "+")
+    
+    def get_address_url(address: str) -> str:
+        safeAddress = Map._get_map_safe_str(address)
+        
+        return 'https://www.google.com/maps/search/?api=1&query=' + safeAddress
     
     def get_directions_url(origin: str, destination: str) -> str:
-        safeOrigin = origin.replace(' ', '+')
-        safeDestination = destination.replace(' ', '+')
+        safeOrigin = Map._get_map_safe_str(origin)
+        safeDestination = Map._get_map_safe_str(destination)
         
         return 'https://www.google.com/maps/dir/?api=1&origin=' + safeOrigin + '&destination=' + safeDestination

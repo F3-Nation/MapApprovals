@@ -21,7 +21,7 @@ class Map:
 
         return address['formatted_address']
     
-    def get_feet_between_address_and_latlong(self, address: str, latitude: str, longitude: str) -> float:
+    def get_feet_between_address_and_latlong(self, address: str, latitude: str, longitude: str) -> float|str:
         directions = self._client.directions(origin=address, destination=latitude + ',' + longitude, mode='walking')
 
         if len(directions) == 0:

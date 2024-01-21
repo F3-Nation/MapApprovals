@@ -1,14 +1,17 @@
 import logging
 import os
-from enum import Enum
+from enum import Enum, auto
 from slack_sdk import WebClient
 from datetime import datetime
 import pytz
 
 class Action_Value(Enum):
-    Approve = 0
-    Delete = 1
-    RejectDelete = 2
+    Approve = auto()
+    Refresh = auto()
+    MarkComplete = auto()
+    Delete = auto()
+    RejectDelete = auto()
+
 
 class Button_Style(Enum):
     """Changes the color of the button. Default is gray, Primary is green, Danger is red."""

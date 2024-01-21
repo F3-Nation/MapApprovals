@@ -14,18 +14,8 @@ class MapApprovalHandler:
         self.smtp = SMTP()
         self.map = Map()
 
-    def handle_gravity_forms_submission(self, entry: dict):
-        logging.info('Handling Gravity Forms Workout.')
-        logging.debug(entry)
-
-        if 'form_id' not in entry:
-            logging.error('Not a proper Gravity Forms payload. Payload does not include "form_id", which represents the form ID, and is required. Will not process')
-            return
-
-        if entry['form_id'] != self.gravity_forms.FORM_ID_WORKOUT:
-            logging.error('Form ID submitted to the /webhooks/workout endpoint (' + entry['form_id'] + ' does not match configured form ID (' + self.gravity_forms.FORM_ID_WORKOUT + '). Will not process.')
-            return
-
+    def _build_workout_slack_blocks(self, entry: dict) -> list:
+        
         submissionType = GravityForms.is_new_or_update(entry)
         region = entry['21']
         workout_name = entry['2']
@@ -54,7 +44,6 @@ class MapApprovalHandler:
         direction_url = Map.get_directions_url(origin=full_address, destination=latitude + ',' + longitude)
         pin_to_address_distance = self.map.get_feet_between_address_and_latlong(address=full_address, latitude=latitude, longitude=longitude)
 
-        
         blocks = Slack.start_blocks()
         blocks.append(Slack.get_block_header('Map Request: ' + submissionType))
         blocks.append(Slack.get_block_section('*Region:* ' + region + '\n*Workout Name:* ' + workout_name + '\n\n*Street 1:* ' + street_1 + '\n*Street 2:* ' + street_2 + '\n*City:* ' + city + '\n*State:* ' + state + '\n*ZIP Code:* ' + zip_code + '\n*Country:* ' + country + '\n<' + address_url + '|Map It>\n\n*Latitude:* \'' + latitude + '\'\n*Longitude:* \'' + longitude + '\'\n<' + lat_long_url + '|Map It>\n\n*Address at Lat/Long:* ' + address_at_lat_long + '\n*Lat/Long to Address Distance:* ' + str(pin_to_address_distance) + ' ft\n\n*Weekday:* ' + weekday + '\n*Time:* ' + time + '\n*Type:* ' + workout_type + '\n\n*Region Website:* ' + website + '\n*Region Logo:* ' + logo + '\n\n*Notes:* ' + notes + '\n\n*Submitter:* ' + submitter_name + '\n*Submitter Email:* ' + submitter_email + '\n*Original Submission:* ' + date_created))
@@ -64,9 +53,29 @@ class MapApprovalHandler:
 
         blockActions = Slack.get_block_actions()
         blockActions = Slack.get_block_actions_button(blockActions, 'Approve', Button_Style.primary, Action_Value.Approve.name + '_' + entry['id'])
+        blockActions = Slack.get_block_actions_button(blockActions, 'Refresh', Button_Style.default, Action_Value.Refresh.name + '_' + entry['id'])
+        blockActions = Slack.get_block_actions_button(blockActions, 'Mark Complete', Button_Style.default, Action_Value.MarkComplete.name)
         blocks.append(blockActions)
 
         blocks.append(Slack.get_divider())
+
+        return blocks
+    
+    
+    def handle_gravity_forms_submission(self, entry: dict):
+        logging.info('Handling Gravity Forms Workout.')
+        logging.debug(entry)
+
+        if 'form_id' not in entry:
+            logging.error('Not a proper Gravity Forms payload. Payload does not include "form_id", which represents the form ID, and is required. Will not process')
+            return
+
+        if entry['form_id'] != self.gravity_forms.FORM_ID_WORKOUT:
+            logging.error('Form ID submitted to the /webhooks/workout endpoint (' + entry['form_id'] + ' does not match configured form ID (' + self.gravity_forms.FORM_ID_WORKOUT + '). Will not process.')
+            return
+
+        blocks = self._build_workout_slack_blocks(entry=entry)
+        region = entry['21']
 
         self.slack.post_msg_to_channel('Map Request from ' + region, blocks)
     
@@ -114,17 +123,13 @@ class MapApprovalHandler:
         actionValue = body['actions'][0]['value']
         logging.debug('Action value: ' + body['actions'][0]['value'])
         action_value_pieces = str.split(actionValue, '_')
-
-        if len(action_value_pieces) < 2:
-            logging.error('Action value (' + actionValue + ') is not valid. Must be at least 2 parts (separated by _), Action, followed by an Entry ID. There may be additional parts, but at least 2 are required. Will not process.')
-            return
-
         action = action_value_pieces[0]
-        entryId = action_value_pieces[1]
         user = self.slack.get_display_name(body['user']['id'])
 
         if action == Action_Value.Approve.name:
             logging.info('Action: Approve')
+
+            entryId = action_value_pieces[1]
             entry = self.gravity_forms.get_entry(entryId) # Get latest version
             entry['is_approved'] = "1"
             entry['is_read'] = "1"
@@ -172,9 +177,25 @@ class MapApprovalHandler:
                 logging.error('Could not approve entry ' + entryId)
                 self.slack.post_msg_to_channel(text='Map Request Approval Failed! ' + user + ' tried to approve it, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
 
+        elif action == Action_Value.Refresh.name:
+            logging.info('Action: Refresh')
+
+            entryId = action_value_pieces[1]
+            entry = self.gravity_forms.get_entry(entryId)
+            blocks = self._build_workout_slack_blocks(entry=entry)
+            self.slack.replace_msg(interactivePayload=body, blocks=blocks)
+
+        elif action == Action_Value.MarkComplete.name:
+            logging.info('Action: Mark Complete')
+
+            statusBlock = Slack.get_block_section('Request manually marked approved by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_et(body['actions'][0]['action_ts']))
+            blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
+            self.slack.replace_msg(interactivePayload=body, blocks=blocks)
+        
         elif action == Action_Value.Delete.name:
             logging.info('Action: Delete')
 
+            entryId = action_value_pieces[1]
             entry = self.gravity_forms.get_entry(entryId)
 
             if entry['status'] == 'trash':
@@ -221,6 +242,7 @@ class MapApprovalHandler:
         elif action == Action_Value.RejectDelete.name:
             logging.info('Action: Reject Delete')
 
+            entryId = action_value_pieces[1]
             logging.info('Sending delete command for delete request entry ' + entryId + '.')
             success = self.gravity_forms.trash_entry(entryId)
             if success:

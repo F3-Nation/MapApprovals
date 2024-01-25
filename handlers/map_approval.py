@@ -43,10 +43,12 @@ class MapApprovalHandler:
         lat_long_url = Map.get_address_url(latitude + ',' + longitude)
         direction_url = Map.get_directions_url(origin=full_address, destination=latitude + ',' + longitude)
         pin_to_address_distance = self.map.get_feet_between_address_and_latlong(address=full_address, latitude=latitude, longitude=longitude)
+        if type(pin_to_address_distance) is int:
+            pin_to_address_distance = '{0:,.0f}'.format(pin_to_address_distance) + ' ft'
 
         blocks = Slack.start_blocks()
         blocks.append(Slack.get_block_header('Map Request: ' + submissionType))
-        blocks.append(Slack.get_block_section('*Region:* ' + region + '\n*Workout Name:* ' + workout_name + '\n\n*Street 1:* ' + street_1 + '\n*Street 2:* ' + street_2 + '\n*City:* ' + city + '\n*State:* ' + state + '\n*ZIP Code:* ' + zip_code + '\n*Country:* ' + country + '\n<' + address_url + '|Map It>\n\n*Latitude:* \'' + latitude + '\'\n*Longitude:* \'' + longitude + '\'\n<' + lat_long_url + '|Map It>\n\n*Address at Lat/Long:* ' + address_at_lat_long + '\n*Lat/Long to Address Distance:* ' + str(pin_to_address_distance) + ' ft\n\n*Weekday:* ' + weekday + '\n*Time:* ' + time + '\n*Type:* ' + workout_type + '\n\n*Region Website:* ' + website + '\n*Region Logo:* ' + logo + '\n\n*Notes:* ' + notes + '\n\n*Submitter:* ' + submitter_name + '\n*Submitter Email:* ' + submitter_email + '\n*Original Submission:* ' + date_created))
+        blocks.append(Slack.get_block_section('*Region:* ' + region + '\n*Workout Name:* ' + workout_name + '\n\n*Street 1:* ' + street_1 + '\n*Street 2:* ' + street_2 + '\n*City:* ' + city + '\n*State:* ' + state + '\n*ZIP Code:* ' + zip_code + '\n*Country:* ' + country + '\n<' + address_url + '|Map It>\n\n*Latitude:* \'' + latitude + '\'\n*Longitude:* \'' + longitude + '\'\n<' + lat_long_url + '|Map It>\n\n*Address at Lat/Long:* ' + address_at_lat_long + '\n*Lat/Long to Address Distance:* ' + pin_to_address_distance + '\n\n*Weekday:* ' + weekday + '\n*Time:* ' + time + '\n*Type:* ' + workout_type + '\n\n*Region Website:* ' + website + '\n*Region Logo:* ' + logo + '\n\n*Notes:* ' + notes + '\n\n*Submitter:* ' + submitter_name + '\n*Submitter Email:* ' + submitter_email + '\n*Original Submission:* ' + date_created))
         blocks.append(Slack.get_block_section('Helpful Links: <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + entry['form_id'] + '|All Unapproved Requests>, <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&view=entry&id=' + entry['form_id'] + '&lid=' + entry['id'] + '|This Request>, <' + direction_url + '|Directions from address to lat/long>'))
 
         blocks.append(Slack.get_divider())
@@ -199,8 +201,8 @@ class MapApprovalHandler:
 
                 full_address = street_1 + ' ' + street_2 + ' ' + city + ' ' + state + ' ' + zip_code + ' ' + country
                 pin_to_address_distance = self.map.get_feet_between_address_and_latlong(address=full_address, latitude=latitude, longitude=longitude)
-                if pin_to_address_distance > self._ALERT_DISTANCE_FEET:
-                    discrepency_warning = '<p/><div style="background-color: yellow;"><b><u>WARNING:</u></b> The distance between the address provided and the latitude/longitude provided is ' + pin_to_address_distance + ' feet. If you are ok with this, no action is needed. If you think they should be closer, please research the issue and submit necessary changes using the link above. If you need help getting this information accurate, please repl to this email.</div><p/>'
+                if type(pin_to_address_distance) is int and pin_to_address_distance > self._ALERT_DISTANCE_FEET:
+                    discrepency_warning = '<p/><div style="background-color: yellow;"><b><u>WARNING:</u></b> The distance between the address provided and the latitude/longitude provided is ' + '{0:,.0f}'.format(pin_to_address_distance) + ' feet. If you are ok with this, no action is needed. If you think they should be closer, please research the issue and submit necessary changes using the link above. If you need help getting this information accurate, please repl to this email.</div><p/>'
                 else:
                     discrepency_warning = ''
                 

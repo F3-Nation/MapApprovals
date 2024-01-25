@@ -1,5 +1,6 @@
 import os
 import googlemaps
+import geopy.distance
 
 class Map:
     _KEY = os.getenv('GOOGLE_MAP_KEY')
@@ -21,21 +22,25 @@ class Map:
 
         return address['formatted_address']
     
-    def get_feet_between_address_and_latlong(self, address: str, latitude: str, longitude: str) -> float|str:
-        directions = self._client.directions(origin=address, destination=latitude + ',' + longitude, mode='walking')
+    def get_latlong_from_address(self, address) -> (str, str):
+        """Takes an address string and returns a str tuple of latitude and longitude."""
 
-        if len(directions) == 0:
-            return "Could not find walkable path."
+        response = self._client.geocode(address)
+        if response == []:
+            return (None, None)
+
+        coordinates = response[0]['geometry']['location']
+        return (coordinates['lat'], coordinates['lng'])
+    
+    def get_feet_between_address_and_latlong(self, address: str, latitude: str, longitude: str) -> int|str:
+        (address_lat, address_long) = self.get_latlong_from_address(address=address)
+        if address_lat == None:
+            return 'Address could not be converted to lat/long'
+
+        feet = geopy.distance.distance((address_lat, address_long), (latitude, longitude)).feet
+        feet = round(float(feet))
         
-        distance = directions[0]['legs'][0]['distance']['text']
-        distancePieces = distance.split(' ')
-        distanceValue = round(float(distancePieces[0]))
-        distanceUnits = distancePieces[1]
-        if  distanceUnits == 'mi':
-            distanceValue = '{0:,.0f}'.format(distanceValue * 5280)
-            distanceUnits = 'ft'
-        
-        return distanceValue
+        return feet
     
     def _get_map_safe_str(str: str) -> str:
         return str.replace('+', '%2B').replace(' ', "+")

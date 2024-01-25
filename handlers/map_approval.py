@@ -156,11 +156,12 @@ class MapApprovalHandler:
         logging.debug(body)
         logging.info('Handling Slack Action.')
 
-        actionValue = body['actions'][0]['value']
-        logging.debug('Action value: ' + actionValue)
-        action_value_pieces = str.split(actionValue, '_')
+        action_value = body['actions'][0]['value']
+        logging.debug('Action value: ' + action_value)
+        action_value_pieces = str.split(action_value, '_')
         action = action_value_pieces[0]
-        user = self.slack.get_display_name(body['user']['id'])
+        user_id = body['user']['id']
+        user_name = self.slack.get_display_name(user_id)
 
         if action == Action_Value.Approve.name:
             logging.info('Action: Approve')
@@ -211,7 +212,7 @@ class MapApprovalHandler:
                 logging.info('Entry updated, action logged to Slack thread, requestor emailed.')
             else:
                 logging.error('Could not approve entry ' + entryId)
-                self.slack.post_msg_to_channel(text='Map Request Approval Failed! ' + user + ' tried to approve it, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
+                self.slack.post_msg_to_channel(text='Map Request Approval Failed! ' + user_name + ' tried to approve it, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
 
         elif action == Action_Value.Refresh.name:
             logging.info('Action: Refresh')
@@ -268,7 +269,7 @@ class MapApprovalHandler:
 
                 logging.info('Entry deleted, action logged to Slack, requestor emailed.')
             else:
-                self.slack.post_msg_to_channel(text='Workout deletion failed! ' + user + ' tried to send it to trash, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
+                self.slack.post_msg_to_channel(text='Workout deletion failed! ' + user_name + ' tried to send it to trash, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
 
             deleteEntry['is_approved'] = "1"
             deleteEntry['is_read'] = "1"
@@ -298,22 +299,26 @@ class MapApprovalHandler:
 
                 logging.info('Delete request entry (not workout) sent to trash, action logged to Slack, requestor emailed.')
             else:
-                self.slack.post_msg_to_channel(text='Workout delete rejection failed! ' + user + ' tried to not send it to trash, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
+                self.slack.post_msg_to_channel(text='Workout delete rejection failed! ' + user_name + ' tried to not send it to trash, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
 
         elif action == Action_Value.Edit.name:
             logging.info('Action: Edit')
-
+            
+            blocks_loading = [Slack.get_block_section('We will be right with you.')]
+            response = self.slack.open_modal(interactivePayload=body, title='Loading workout data', blocks=blocks_loading)
+            
             entryId = action_value_pieces[1]
             entry = self.gravity_forms.get_entry(entryId)
 
             region = entry['21']
             workout_name = entry['2']
 
+            callback_id = Views.EditWorkout.name + '_' + body['container']['message_ts'] + '_' + entryId
             blocks = self._build_edit_view_content(entry)
-            self.slack.open_modal(view_id=Views.EditWorkout.name + '_' + body['container']['message_ts'], interactivePayload=body, title=workout_name + ' @ ' + region, blocks=blocks, external_id=entryId)
+            self.slack.update_modal(view_id=response['view']['id'], callback_id=callback_id, title=workout_name + ' @ ' + region, blocks=blocks)
 
         else:
-            logging.error('A Slack Action was received with an action value that is not handled: ' + actionValue)
+            logging.error('A Slack Action was received with an action value that is not handled: ' + action_value)
 
         logging.info('Done handling Slack Action.')
     
@@ -322,14 +327,14 @@ class MapApprovalHandler:
         logging.debug(body)
         logging.info('Handling Slack View Submission.')
 
-        viewIdValue = body['view']['callback_id']
-        viewIdPieces = str.split(viewIdValue, '_')
-        viewId = viewIdPieces[0]
+        callback_id = body['view']['callback_id']
+        callback_pieces = str.split(callback_id, '_')
+        callback_type = callback_pieces[0]
 
-        if viewId == Views.EditWorkout.name:
-            message_ts = viewIdPieces[1]
+        if callback_type == Views.EditWorkout.name:
+            message_ts = callback_pieces[1]
             
-            entryId = body['view']['external_id']
+            entryId = callback_pieces[2]
             entry = self.gravity_forms.get_entry(entryId)
 
             edited = False

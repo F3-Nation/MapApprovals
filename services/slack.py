@@ -54,18 +54,16 @@ class Slack:
 
         self._client.chat_update(channel=channel, ts=ts, blocks=blocks, text=text)
     
-    def open_modal(self, view_id: str, interactivePayload: dict, title: str, blocks: list, cancel_text: str|None = None, submit_text: str|None = None, notify_on_close: bool = False, external_id: str|None = None) -> None:
-        """Will open a modal on the user's screen.
+    def _create_view(title: str, blocks: list, callback_id: str|None = None, cancel_text: str|None = None, submit_text: str|None = None, notify_on_close: bool = False) -> dict:
+        """title, submit_text, and cancel_text are limited to 24 characters. callback_id is limited to 255. Anything longer will be truncated."""
         
-        Certain fields cannot have more than 24 characters.
-        """
-
         submit_text = 'Submit' if submit_text == None else submit_text[:24]
         cancel_text   = 'Cancel' if cancel_text == None else cancel_text[:24]
+        callback_id   = '' if callback_id == None else callback_id[:255]
 
         view = {
             "type": "modal",
-            "callback_id": view_id,
+            "callback_id": callback_id,
             "title": {
                 "type": 'plain_text',
                 "text": title[:24]
@@ -78,12 +76,19 @@ class Slack:
                 "type": "plain_text",
                 "text": cancel_text
             },
-            "notify_on_close": False,
-            "external_id": external_id or "",
+            "notify_on_close": notify_on_close,
             "blocks": blocks
         }
-        
-        self._client.views_open(trigger_id=interactivePayload['trigger_id'], view=view)
+
+        return view
+    
+    def open_modal(self, interactivePayload: dict, title: str, blocks: list, cancel_text: str|None = None, submit_text: str|None = None, notify_on_close: bool = False, callback_id: str|None = None) -> None:
+        view = Slack._create_view(callback_id=callback_id, title=title, blocks=blocks, cancel_text=cancel_text, submit_text=submit_text, notify_on_close=notify_on_close)
+        return self._client.views_open(trigger_id=interactivePayload['trigger_id'], view=view)
+    
+    def update_modal(self, view_id: str, title: str, blocks: list, cancel_text: str|None = None, submit_text: str|None = None, notify_on_close: bool = False, callback_id: str|None = None) -> None:
+        view = Slack._create_view(callback_id=callback_id, title=title, blocks=blocks, cancel_text=cancel_text, submit_text=submit_text, notify_on_close=notify_on_close)
+        self._client.views_update(view_id=view_id, view=view)
     
     def convert_ts_to_et(ts: str) -> str:
         """Takes the Slack timestamp, which is in UTC Epoch, and converts it to a string based in Eastern Time."""

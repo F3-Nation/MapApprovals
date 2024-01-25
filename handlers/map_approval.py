@@ -398,6 +398,8 @@ class MapApprovalHandler:
             blocks = self._build_workout_slack_blocks(entry=entry)
             message = self.slack.get_msg(message_ts)
             self.slack.replace_msg(original_message=message, ts=message_ts, blocks=blocks)
+        
+        logging.info('Dond handling Slack View Submission.')
 
 
     def handle_unapproved_workout_check(self, alert_on_no_unapproved: bool) -> None:

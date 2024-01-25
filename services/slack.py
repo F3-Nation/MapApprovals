@@ -54,11 +54,15 @@ class Slack:
 
         self._client.chat_update(channel=channel, ts=ts, blocks=blocks, text=text)
     
-    def open_modal(self, view_id: str, interactivePayload: dict, title: str, blocks: list, cancelText: str|None = None, submit_text: str|None = None, notify_on_close: bool = False, external_id: str|None = None) -> None:
+    def open_modal(self, view_id: str, interactivePayload: dict, title: str, blocks: list, cancel_text: str|None = None, submit_text: str|None = None, notify_on_close: bool = False, external_id: str|None = None) -> None:
         """Will open a modal on the user's screen.
         
         Certain fields cannot have more than 24 characters.
         """
+
+        submit_text = 'Submit' if submit_text == None else submit_text[:24]
+        cancel_text   = 'Cancel' if cancel_text == None else cancel_text[:24]
+
         view = {
             "type": "modal",
             "callback_id": view_id,
@@ -68,11 +72,11 @@ class Slack:
             },
             "submit": {
                 "type": "plain_text",
-                "text": submit_text[:24] or "Submit"
+                "text": submit_text
             },
             "close": {
                 "type": "plain_text",
-                "text": cancelText[:24] or "Cancel"
+                "text": cancel_text
             },
             "notify_on_close": False,
             "external_id": external_id or "",

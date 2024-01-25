@@ -44,9 +44,12 @@ def process_gravity_forms_workout_delete():
 @app.route('/webhooks/slack', methods=['POST'])
 def process_slack():
     body = json.loads(request.form['payload'])
+    logging.debug(body)
 
     if body['type'] == 'block_actions':
         thread = Thread(target=map_approval.handle_slack_action, kwargs={'body':body})
+    elif body['type'] == 'view_submission':
+        thread = Thread(target=map_approval.handle_slack_view_submission, kwargs={'body':body})
     else:
         logging.warning('Received an interactive message from Slack with an unhandled type: ' + body['type'])
         return Response(status=400)

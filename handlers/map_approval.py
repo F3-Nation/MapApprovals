@@ -1,6 +1,6 @@
 import logging
 import os
-from services.slack import Slack, Action_Value, Button_Style
+from services.slack import Slack, Action_Value, Button_Style, Views
 from services.gravity_forms import GravityForms
 from services.smtp import SMTP
 from services.map import Map
@@ -53,6 +53,7 @@ class MapApprovalHandler:
 
         blockActions = Slack.get_block_actions()
         blockActions = Slack.get_block_actions_button(blockActions, 'Approve', Button_Style.primary, Action_Value.Approve.name + '_' + entry['id'])
+        blockActions = Slack.get_block_actions_button(blockActions, 'Edit', Button_Style.default, Action_Value.Edit.name + '_' + entry['id'])
         blockActions = Slack.get_block_actions_button(blockActions, 'Refresh', Button_Style.default, Action_Value.Refresh.name + '_' + entry['id'])
         blockActions = Slack.get_block_actions_button(blockActions, 'Mark Complete', Button_Style.default, Action_Value.MarkComplete.name)
         blocks.append(blockActions)
@@ -62,6 +63,39 @@ class MapApprovalHandler:
         return blocks
     
     
+    def _build_edit_view_content(self, entry: dict) -> dict:
+        
+        workout_name = entry['2']
+        street_1 = entry['1.1']
+        street_2 = entry['1.2']
+        city = entry['1.3']
+        state = entry['1.4']
+        zip_code = entry['1.5']
+        latitude = entry['13']
+        longitude = entry['12']
+        website = entry['17']
+        notes = entry['15']
+        submitter_name = entry['18']
+        submitter_email = entry['19']
+
+        blocks = []
+        blocks.append(Slack.get_block_section(message='Region, country, weekday, time, and workout type must be edited from Wordpress. Original post will be refreshed shortly after you submit edits.'))
+        blocks.append(Slack.get_block_input(id='workout_name', label='Workout Name', initial_value = workout_name))
+        blocks.append(Slack.get_block_input(id='street_1', label='Street 1', initial_value = street_1))
+        blocks.append(Slack.get_block_input(id='street_2', label='Street 2', initial_value = street_2))
+        blocks.append(Slack.get_block_input(id='city', label='City', initial_value = city))
+        blocks.append(Slack.get_block_input(id='state', label='State', initial_value = state))
+        blocks.append(Slack.get_block_input(id='zip_code', label='ZIP Code', initial_value = zip_code))
+        blocks.append(Slack.get_block_input(id='latitude', label='Latitude', initial_value = latitude))
+        blocks.append(Slack.get_block_input(id='longitude', label='Longitude', initial_value = longitude))
+        blocks.append(Slack.get_block_input(id='website', label='Website', initial_value = website, multiline=True))
+        blocks.append(Slack.get_block_input(id='notes', label='Notes', initial_value = notes, multiline=True))
+        blocks.append(Slack.get_block_input(id='submitter_name', label='Submitter Name', initial_value = submitter_name))
+        blocks.append(Slack.get_block_input(id='submitter_email', label='Submitter email', initial_value = submitter_email))
+
+        return blocks
+    
+
     def handle_gravity_forms_submission(self, entry: dict):
         logging.info('Handling Gravity Forms Workout.')
         logging.debug(entry)
@@ -121,7 +155,7 @@ class MapApprovalHandler:
         logging.info('Handling Slack Action.')
 
         actionValue = body['actions'][0]['value']
-        logging.debug('Action value: ' + body['actions'][0]['value'])
+        logging.debug('Action value: ' + actionValue)
         action_value_pieces = str.split(actionValue, '_')
         action = action_value_pieces[0]
         user = self.slack.get_display_name(body['user']['id'])
@@ -139,7 +173,7 @@ class MapApprovalHandler:
             if success:
                 statusBlock = Slack.get_block_section('Request approved by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_et(body['actions'][0]['action_ts']))
                 blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
-                self.slack.replace_msg(interactivePayload=body, blocks=blocks)
+                self.slack.replace_msg(original_message=body['message'], ts=body['container']['message_ts'], blocks=blocks)
                 
                 submissionType = GravityForms.is_new_or_update(entry)
                 region = entry['21']
@@ -183,14 +217,14 @@ class MapApprovalHandler:
             entryId = action_value_pieces[1]
             entry = self.gravity_forms.get_entry(entryId)
             blocks = self._build_workout_slack_blocks(entry=entry)
-            self.slack.replace_msg(interactivePayload=body, blocks=blocks)
+            self.slack.replace_msg(original_message=body['message'], ts=body['container']['message_ts'], blocks=blocks)
 
         elif action == Action_Value.MarkComplete.name:
             logging.info('Action: Mark Complete')
 
             statusBlock = Slack.get_block_section('Request manually marked approved by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_et(body['actions'][0]['action_ts']))
             blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
-            self.slack.replace_msg(interactivePayload=body, blocks=blocks)
+            self.slack.replace_msg(original_message=body['message'], ts=body['container']['message_ts'], blocks=blocks)
         
         elif action == Action_Value.Delete.name:
             logging.info('Action: Delete')
@@ -203,7 +237,7 @@ class MapApprovalHandler:
                 
                 statusBlock = Slack.get_block_section('This workout was already deleted. Sorry about that. You should be good to go.')
                 blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
-                self.slack.replace_msg(interactivePayload=body, blocks=blocks)
+                self.slack.replace_msg(original_message=body['message'], ts=body['container']['message_ts'], blocks=blocks)
                 return
 
             deleteEntryId = action_value_pieces[2] # Entry ID of the form submitted to request the deletion, not the ID of the workout.
@@ -214,7 +248,7 @@ class MapApprovalHandler:
             if success:
                 statusBlock = Slack.get_block_section('Workout sent to trash by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_et(body['actions'][0]['action_ts']))
                 blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
-                self.slack.replace_msg(interactivePayload=body, blocks=blocks)
+                self.slack.replace_msg(original_message=body['message'], ts=body['container']['message_ts'], blocks=blocks)
                 
                 region = deleteEntry['7']
                 workout_name = deleteEntry['1']
@@ -248,7 +282,7 @@ class MapApprovalHandler:
             if success:
                 statusBlock = Slack.get_block_section('Workout will not be sent to trash, as indicated by <@' + body['user']['id'] + '> at ' + Slack.convert_ts_to_et(body['actions'][0]['action_ts']))
                 blocks = Slack.replace_buttons(blocks=body['message']['blocks'], newBlock=statusBlock)
-                self.slack.replace_msg(interactivePayload=body, blocks=blocks)
+                self.slack.replace_msg(original_message=body['message'], ts=body['container']['message_ts'], blocks=blocks)
 
                 region = entry['7']
                 workout_name = entry['1']
@@ -264,11 +298,101 @@ class MapApprovalHandler:
             else:
                 self.slack.post_msg_to_channel(text='Workout delete rejection failed! ' + user + ' tried to not send it to trash, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
 
+        elif action == Action_Value.Edit.name:
+            logging.info('Action: Edit')
+
+            entryId = action_value_pieces[1]
+            entry = self.gravity_forms.get_entry(entryId)
+
+            region = entry['21']
+            workout_name = entry['2']
+
+            blocks = self._build_edit_view_content(entry)
+            self.slack.open_modal(view_id=Views.EditWorkout.name + '_' + body['container']['message_ts'], interactivePayload=body, title=workout_name + ' @ ' + region, blocks=blocks, external_id=entryId)
+
         else:
             logging.error('A Slack Action was received with an action value that is not handled: ' + actionValue)
 
         logging.info('Done handling Slack Action.')
     
+
+    def handle_slack_view_submission(self, body: dict):
+        logging.debug(body)
+        logging.info('Handling Slack View Submission.')
+
+        viewIdValue = body['view']['callback_id']
+        viewIdPieces = str.split(viewIdValue, '_')
+        viewId = viewIdPieces[0]
+
+        if viewId == Views.EditWorkout.name:
+            message_ts = viewIdPieces[1]
+            
+            entryId = body['view']['external_id']
+            entry = self.gravity_forms.get_entry(entryId)
+
+            edited = False
+            if body['view']['state']['values']['workout_name']['workout_name']['value'] != entry['2']:
+                entry['2'] = body['view']['state']['values']['workout_name']['workout_name']['value']
+                edited = True
+            
+            if body['view']['state']['values']['street_1']['street_1']['value'] != entry['1.1']:
+                entry['1.1'] = body['view']['state']['values']['street_1']['street_1']['value']
+                edited = True
+
+            if body['view']['state']['values']['street_2']['street_2']['value'] != entry['1.2']:
+                entry['1.2'] = body['view']['state']['values']['street_2']['street_2']['value']
+                edited = True
+
+            if body['view']['state']['values']['city']['city']['value'] != entry['1.3']:
+                entry['1.3'] = body['view']['state']['values']['city']['city']['value']
+                edited = True
+
+            if body['view']['state']['values']['state']['state']['value'] != entry['1.4']:
+                entry['1.4'] = body['view']['state']['values']['state']['state']['value']
+                edited = True
+
+            if body['view']['state']['values']['zip_code']['zip_code']['value'] != entry['1.5']:
+                entry['1.5'] = body['view']['state']['values']['zip_code']['zip_code']['value']
+                edited = True
+
+            if body['view']['state']['values']['latitude']['latitude']['value'] != entry['13']:
+                entry['13'] = body['view']['state']['values']['latitude']['latitude']['value']
+                edited = True
+
+            if body['view']['state']['values']['longitude']['longitude']['value'] != entry['12']:
+                entry['12'] = body['view']['state']['values']['longitude']['longitude']['value']
+                edited = True
+
+            if body['view']['state']['values']['website']['website']['value'] != entry['17']:
+                entry['17'] = body['view']['state']['values']['website']['website']['value']
+                edited = True
+
+            if body['view']['state']['values']['notes']['notes']['value'] != entry['15']:
+                entry['15'] = body['view']['state']['values']['notes']['notes']['value']
+                edited = True
+            
+            if body['view']['state']['values']['submitter_name']['submitter_name']['value'] != entry['18']:
+                entry['18'] = body['view']['state']['values']['submitter_name']['submitter_name']['value']
+                edited = True
+            
+            if body['view']['state']['values']['submitter_email']['submitter_email']['value'] != entry['19']:
+                entry['15'] = body['view']['state']['values']['submitter_email']['submitter_email']['value']
+                edited = True
+
+            if edited:
+                logging.info('Updating some values for ' + entryId + '.')
+                self.gravity_forms.update_entry(entryId=entryId, entry=entry)
+            else:
+                logging.info('No changes detected. No action taken.')
+                #return
+
+            logging.info('Refreshing message.')
+            entry = self.gravity_forms.get_entry(entryId)
+            blocks = self._build_workout_slack_blocks(entry=entry)
+            message = self.slack.get_msg(message_ts)
+            self.slack.replace_msg(original_message=message, ts=message_ts, blocks=blocks)
+
+
     def handle_unapproved_workout_check(self, alert_on_no_unapproved: bool) -> None:
         logging.info('Handline Check Unapproved.')
         unapprovedUpdateCount = self.gravity_forms.get_unapproved_count(self.gravity_forms.FORM_ID_WORKOUT)

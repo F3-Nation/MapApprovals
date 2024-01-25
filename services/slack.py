@@ -11,6 +11,10 @@ class Action_Value(Enum):
     MarkComplete = auto()
     Delete = auto()
     RejectDelete = auto()
+    Edit = auto()
+
+class Views(Enum):
+    EditWorkout = auto()
 
 
 class Button_Style(Enum):
@@ -30,6 +34,12 @@ class Slack:
         user = self._client.users_profile_get(user=userId)
         return user['profile']['display_name_normalized']
 
+    def get_msg(self, ts: str, channel: str|None = None) -> dict:
+        channel = channel or self._MAP_CHANNEL_ID
+        response = self._client.conversations_history(channel=channel, inclusive=True, oldest=ts, limit=1)
+        a = response['messages']
+        return response['messages'][0]
+    
     def post_msg_to_channel(self, text: str, blocks: list|None = None, thread_ts: str|None = None, unfurl: bool = False, channel: str = None) -> None:
         if channel is None:
             channel = self._MAP_CHANNEL_ID
@@ -37,17 +47,36 @@ class Slack:
         self._client.chat_postMessage(channel=channel, text=text, blocks=blocks, thread_ts=thread_ts, unfurl_links=unfurl, unfurl_media=unfurl)
         logging.info('Posted request to Slack. Done handling.')
 
-    def replace_msg(self, interactivePayload: dict, text: str|None = None, blocks: dict|None = None) -> None:
-        channel = interactivePayload['container']['channel_id']
-        ts = interactivePayload['container']['message_ts']
+    def replace_msg(self, original_message: dict, ts: str, channel: str|None = None, text: str|None = None, blocks: dict|None = None) -> None:
+        channel = channel or self._MAP_CHANNEL_ID
+        text = text or original_message['text']
+        blocks = blocks or original_message['blocks']
 
-        if None == text:
-            text = interactivePayload['message']['text']
-        
-        if None == blocks:
-            blocks = interactivePayload['message']['blocks']
-        
         self._client.chat_update(channel=channel, ts=ts, blocks=blocks, text=text)
+    
+    def open_modal(self, view_id: str, interactivePayload: dict, title: str, blocks: list, cancelText: str|None = None, submit_text: str|None = None, notify_on_close: bool = False, external_id: str|None = None) -> None:
+
+        view = {
+            "type": "modal",
+            "callback_id": view_id,
+            "title": {
+                "type": 'plain_text',
+                "text": title
+            },
+            "submit": {
+                "type": "plain_text",
+                "text": submit_text or "Submit"
+            },
+            "close": {
+                "type": "plain_text",
+                "text": cancelText or "Cancel"
+            },
+            "notify_on_close": False,
+            "external_id": external_id or "",
+            "blocks": blocks
+        }
+        
+        self._client.views_open(trigger_id=interactivePayload['trigger_id'], view=view)
     
     def convert_ts_to_et(ts: str) -> str:
         """Takes the Slack timestamp, which is in UTC Epoch, and converts it to a string based in Eastern Time."""
@@ -141,6 +170,23 @@ class Slack:
 
         return actionBlock
     
+    def get_block_input(id: str, label: str, initial_value: str|None = None, optional: bool = True, multiline: bool = False) -> dict:
+        return {
+			"type": "input",
+			"block_id": id,
+			"label": {
+				"type": "plain_text",
+				"text": label
+			},
+			"element": {
+				"type": "plain_text_input",
+				"initial_value": initial_value,
+				"action_id": id,
+                "multiline": multiline
+			},
+			"optional": optional
+		}
+    
     def replace_buttons(blocks: list, newBlock: dict) -> list:
         """Takes the blocks portion of a message, finds a block with block_id 'buttons' and replaces it with newBlock."""
         
@@ -153,5 +199,3 @@ class Slack:
                 newBlocks.append(block)
         
         return newBlocks
-
-        

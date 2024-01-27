@@ -37,9 +37,11 @@ class Map:
         if address_lat == None:
             return 'Address could not be converted to lat/long'
 
-        feet = geopy.distance.distance((address_lat, address_long), (latitude, longitude)).feet
-        feet = round(float(feet))
-        
+        try:
+            feet = geopy.distance.distance((address_lat, address_long), (latitude, longitude)).feet
+            feet = round(float(feet))
+        except Exception as error:
+            return 'Distance could not be calculated: ' + str(error)
         return feet
     
     def _get_map_safe_str(str: str) -> str:

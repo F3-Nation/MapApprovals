@@ -402,7 +402,7 @@ class MapApprovalHandler:
         logging.info('Dond handling Slack View Submission.')
 
 
-    def handle_unapproved_workout_check(self, alert_on_no_unapproved: bool) -> None:
+    def handle_unapproved_workout_check(self, alert_on_no_unapproved: bool, include_channel_mention_on_alert: bool) -> None:
         logging.info('Handline Check Unapproved.')
         unapprovedUpdateCount = self.gravity_forms.get_unapproved_count(self.gravity_forms.FORM_ID_WORKOUT)
         unapprovedDeleteCount = self.gravity_forms.get_unapproved_count(self.gravity_forms.FORM_ID_WORKOUT_DELETE)
@@ -414,11 +414,19 @@ class MapApprovalHandler:
             
             return
         
-        message = []
+        unapprovedCounts = []
         if unapprovedUpdateCount > 0:
-            message.append(str(unapprovedUpdateCount) + ' <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + self.gravity_forms.FORM_ID_WORKOUT + '|updates>')
+            unapprovedCounts.append(str(unapprovedUpdateCount) + ' <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + self.gravity_forms.FORM_ID_WORKOUT + '|updates>')
         if unapprovedDeleteCount > 0:
-            message.append(str(unapprovedDeleteCount) + ' <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + self.gravity_forms.FORM_ID_WORKOUT_DELETE + '|deletes>')
+            unapprovedCounts.append(str(unapprovedDeleteCount) + ' <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + self.gravity_forms.FORM_ID_WORKOUT_DELETE + '|deletes>')
         
-        self.slack.post_msg_to_channel(text='<!channel>, there are unapproved requests: ' + ', '.join(message) + '.')
+        if include_channel_mention_on_alert:
+            message_intro = '<!channel>, there are unapproved requests: '
+        else:
+            message_intro = 'There are unapproved requests: '
+
+        blocks = Slack.start_blocks()
+        blocks.append(Slack.get_block_section(message_intro + ', '.join(unapprovedCounts) + '.'))
+
+        self.slack.post_msg_to_channel(text='There are unapproved requests!', blocks=blocks)
         logging.info('Sent unapproved counts to Slack. Done handling.')

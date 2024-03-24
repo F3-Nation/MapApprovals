@@ -62,8 +62,9 @@ def process_slack():
 def process_unapproved_workout_check():
     params = request.args
     alert_on_no_unapproved = len(params) > 0 and 'alertonnounapproved' in params and params['alertonnounapproved']
+    include_channel_mention_on_alert = len(params) > 0 and 'includechannelmentiononalert' in params and params['includechannelmentiononalert']
 
-    thread = Thread(target=map_approval.handle_unapproved_workout_check, kwargs={'alert_on_no_unapproved':alert_on_no_unapproved})
+    thread = Thread(target=map_approval.handle_unapproved_workout_check, kwargs={'alert_on_no_unapproved':alert_on_no_unapproved, 'includechannelmentiononalert':include_channel_mention_on_alert})
     thread.start()
     return Response(status=200)
 

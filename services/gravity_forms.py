@@ -9,10 +9,11 @@ class GravityForms:
     FORM_ID_WORKOUT_DELETE = os.getenv('GRAVITY_FORM_DELETE_FORM_ID')
     KEY = os.getenv('GRAVITY_FORM_KEY')
     SECRET = os.getenv('GRAVITY_FORM_SECRET')
+    headers = {"User-Agent":"MapApprovals"}
     
     def get_unapproved_count(self, formId: str) -> int:
         param = {"search": '{"field_filters": [{"key":"is_approved","value":3,"operator":"="}]}'}
-        response = requests.get(self.BASE_URL + '/wp-json/gf/v2/forms/' + formId + '/entries', params=param, auth=(self.KEY, self.SECRET))
+        response = requests.get(self.BASE_URL + '/wp-json/gf/v2/forms/' + formId + '/entries', params=param, auth=(self.KEY, self.SECRET), headers=self.headers)
         response.encoding = 'utf-8-sig'
         body = response.json()
 
@@ -20,7 +21,7 @@ class GravityForms:
     
 
     def get_entry(self, entryId: str) -> dict:
-        response = requests.get(self.BASE_URL + '/wp-json/gf/v2/entries/' + entryId, auth=(self.KEY, self.SECRET))
+        response = requests.get(self.BASE_URL + '/wp-json/gf/v2/entries/' + entryId, auth=(self.KEY, self.SECRET), headers=self.headers)
         response.encoding = 'utf-8-sig'
         entry = response.json()
 
@@ -30,7 +31,7 @@ class GravityForms:
     def update_entry(self, entryId: str, entry: dict) -> bool:
         """Updates indicated entry with the json provided. Will return True if response from Gravity Forms is 200."""
 
-        response = requests.put(self.BASE_URL + '/wp-json/gf/v2/entries/' + entryId, json=entry, auth=(self.KEY, self.SECRET))
+        response = requests.put(self.BASE_URL + '/wp-json/gf/v2/entries/' + entryId, json=entry, auth=(self.KEY, self.SECRET), headers=self.headers)
 
         return response.status_code == 200
 
@@ -38,7 +39,7 @@ class GravityForms:
     def trash_entry(self, entryId: str) -> bool:
         """Moves indicated entry to the trash. Will return True if response from Gravity Forms is 200."""
 
-        response = requests.delete(self.BASE_URL + '/wp-json/gf/v2/entries/' + entryId, auth=(self.KEY, self.SECRET))
+        response = requests.delete(self.BASE_URL + '/wp-json/gf/v2/entries/' + entryId, auth=(self.KEY, self.SECRET), headers=self.headers)
 
         return response.status_code == 200
     

@@ -4,6 +4,7 @@ from services.slack import Slack, Action_Value, Button_Style, Views
 from services.gravity_forms import GravityForms
 from services.smtp import SMTP
 from services.map import Map
+from services.google_sheets import GoogleSheets
 
 class MapApprovalHandler:
     _ALERT_DISTANCE_FEET = float(os.getenv('ALERT_DISTANCE_FEET'))
@@ -13,6 +14,7 @@ class MapApprovalHandler:
         self.slack = Slack()
         self.smtp = SMTP()
         self.map = Map()
+        self.google_sheets = GoogleSheets()
 
     def _build_workout_slack_blocks(self, entry: dict) -> list:
         
@@ -113,7 +115,34 @@ class MapApprovalHandler:
         blocks = self._build_workout_slack_blocks(entry=entry)
         region = entry['21']
 
-        self.slack.post_msg_to_channel('Map Request from ' + region, blocks)
+        (postChannel, postTS) = self.slack.post_msg_to_channel('Map Request from ' + region, blocks)
+
+        if (GravityForms.is_new_or_update(entry) == 'Update'):
+            previousValues = self.google_sheets.get_single_entity(entry["id"])
+            newValues = {}
+            newValues["Workout Name"] = entry["2"]
+            newValues["Region"] = entry["21"]
+            newValues["Time"] = entry["4"]
+            newValues["Type"] = entry["5"]
+            newValues["Latitude"] = entry["13"]
+            newValues["Longitude"] = entry["12"]
+            newValues["Weekday"] = entry["14"]
+            newValues["Note"] = entry["15"]
+            newValues["Website"] = entry["17"]
+            newValues["Logo"] = entry["16"]
+            newValues["Address 1"] = entry["1.1"]
+            newValues["Address 2"] = entry["1.2"]
+            newValues["City"] = entry["1.3"]
+            newValues["State"] = entry["1.4"]
+            newValues["Postal Code"] = entry["1.5"]
+            newValues["Country"] = entry["1.6"]
+            newValues["Submitter"] = entry["18"]
+            newValues["Submitter Email"] = entry["19"]
+            newValues["Entry ID"] = entry["id"]
+
+            for field in newValues:
+                if str(previousValues[field]) != newValues[field]:
+                    self.slack.post_msg_to_channel('Previous ' + field + ':\n' + str(previousValues[field]), thread_ts=postTS, channel=postChannel)
     
     
     def handle_gravity_forms_delete(self, entry: dict):

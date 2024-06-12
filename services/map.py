@@ -22,7 +22,7 @@ class Map:
 
         return address['formatted_address']
     
-    def get_latlong_from_address(self, address) -> (str, str):
+    def get_latlong_from_address(self, address) -> tuple[str, str]:
         """Takes an address string and returns a str tuple of latitude and longitude."""
 
         response = self._client.geocode(address)

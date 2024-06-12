@@ -40,12 +40,13 @@ class Slack:
         a = response['messages']
         return response['messages'][0]
     
-    def post_msg_to_channel(self, text: str, blocks: list|None = None, thread_ts: str|None = None, unfurl: bool = False, channel: str = None) -> None:
+    def post_msg_to_channel(self, text: str, blocks: list|None = None, thread_ts: str|None = None, unfurl: bool = False, channel: str = None) -> tuple[str, str]:
         if channel is None:
             channel = self._MAP_CHANNEL_ID
 
-        self._client.chat_postMessage(channel=channel, text=text, blocks=blocks, thread_ts=thread_ts, unfurl_links=unfurl, unfurl_media=unfurl)
+        response = self._client.chat_postMessage(channel=channel, text=text, blocks=blocks, thread_ts=thread_ts, unfurl_links=unfurl, unfurl_media=unfurl)
         logging.info('Posted request to Slack. Done handling.')
+        return (response['channel'], response["ts"])
 
     def replace_msg(self, original_message: dict, ts: str, channel: str|None = None, text: str|None = None, blocks: dict|None = None) -> None:
         channel = channel or self._MAP_CHANNEL_ID

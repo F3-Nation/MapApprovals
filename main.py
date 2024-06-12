@@ -6,6 +6,7 @@ import logging
 import json
 import google.cloud.logging
 from handlers.map_approval import MapApprovalHandler
+from services.google_sheets import GoogleSheets
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 googleLoggingClient = google.cloud.logging.Client()

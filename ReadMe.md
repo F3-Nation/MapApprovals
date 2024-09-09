@@ -5,3 +5,4 @@
 - Deploy to GCP Cloud Run right from source (GitHub)
 - Initial file should be main.py, that's what GCP looks for by default
 - Port should be 8080, that's what GCP looks for by default
+- 

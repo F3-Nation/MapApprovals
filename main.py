@@ -62,10 +62,19 @@ def process_slack():
 @app.route('/webhooks/checkunapproved', methods=['POST'])
 def process_unapproved_workout_check():
     params = request.args
+    check_type = len(params) > 0 and 'type' in params and params['type']
     alert_on_no_unapproved = len(params) > 0 and 'alertonnounapproved' in params and params['alertonnounapproved']
     include_channel_mention_on_alert = len(params) > 0 and 'includechannelmentiononalert' in params and params['includechannelmentiononalert']
 
-    thread = Thread(target=map_approval.handle_unapproved_workout_check, kwargs={'alert_on_no_unapproved':alert_on_no_unapproved, 'include_channel_mention_on_alert':include_channel_mention_on_alert})
+    if check_type != 'workouts' and check_type != 'regions':
+        return Response('Must include parameter called "type" with value "workouts" or "regions" (field name and value are case-sensative).', status=400)
+    
+    if check_type == 'workouts':
+        target_handler = map_approval.handle_unapproved_workout_check
+    else:
+        target_handler = map_approval.handle_unapproved_region_check
+
+    thread = Thread(target=target_handler, kwargs={'alert_on_no_unapproved':alert_on_no_unapproved, 'include_channel_mention_on_alert':include_channel_mention_on_alert})
     thread.start()
     return Response(status=200)
 

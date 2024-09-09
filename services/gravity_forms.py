@@ -7,6 +7,7 @@ class GravityForms:
     BASE_URL = os.getenv('GRAVITY_FORMS_BASE_URL')
     FORM_ID_WORKOUT = os.getenv('GRAVITY_FORM_WORKOUT_FORM_ID')
     FORM_ID_WORKOUT_DELETE = os.getenv('GRAVITY_FORM_DELETE_FORM_ID')
+    FORM_ID_REGION = os.getenv('GRAVITY_FORM_REGION_FORM_ID')
     KEY = os.getenv('GRAVITY_FORM_KEY')
     SECRET = os.getenv('GRAVITY_FORM_SECRET')
     headers = {"User-Agent":"MapApprovals"}

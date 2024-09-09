@@ -78,6 +78,7 @@ class MapApprovalHandler:
         latitude = entry['13']
         longitude = entry['12']
         website = entry['17']
+        logo = entry['16']
         notes = entry['15']
         submitter_name = entry['18']
         submitter_email = entry['19']
@@ -93,6 +94,7 @@ class MapApprovalHandler:
         blocks.append(Slack.get_block_input(id='latitude', label='Latitude', initial_value = latitude))
         blocks.append(Slack.get_block_input(id='longitude', label='Longitude', initial_value = longitude))
         blocks.append(Slack.get_block_input(id='website', label='Website', initial_value = website, multiline=True))
+        blocks.append(Slack.get_block_input(id='logo', label='Logo', initial_value = logo, multiline=True))
         blocks.append(Slack.get_block_input(id='notes', label='Notes', initial_value = notes, multiline=True))
         blocks.append(Slack.get_block_input(id='submitter_name', label='Submitter Name', initial_value = submitter_name))
         blocks.append(Slack.get_block_input(id='submitter_email', label='Submitter email', initial_value = submitter_email))
@@ -402,6 +404,10 @@ class MapApprovalHandler:
             if body['view']['state']['values']['website']['website']['value'] != entry['17']:
                 entry['17'] = body['view']['state']['values']['website']['website']['value']
                 edited = True
+            
+            if body['view']['state']['values']['logo']['logo']['value'] != entry['16']:
+                entry['16'] = body['view']['state']['values']['logo']['logo']['value']
+                edited = True
 
             if body['view']['state']['values']['notes']['notes']['value'] != entry['15']:
                 entry['15'] = body['view']['state']['values']['notes']['notes']['value']
@@ -432,7 +438,7 @@ class MapApprovalHandler:
 
 
     def handle_unapproved_workout_check(self, alert_on_no_unapproved: bool, include_channel_mention_on_alert: bool) -> None:
-        logging.info('Handline Check Unapproved.')
+        logging.info('Handling Check Unapproved (workouts).')
         unapprovedUpdateCount = self.gravity_forms.get_unapproved_count(self.gravity_forms.FORM_ID_WORKOUT)
         unapprovedDeleteCount = self.gravity_forms.get_unapproved_count(self.gravity_forms.FORM_ID_WORKOUT_DELETE)
 
@@ -458,4 +464,33 @@ class MapApprovalHandler:
         blocks.append(Slack.get_block_section(message_intro + ', '.join(unapprovedCounts) + '.'))
 
         self.slack.post_msg_to_channel(text='There are unapproved requests!', blocks=blocks)
+        logging.info('Sent unapproved counts to Slack. Done handling.')
+    
+
+    def handle_unapproved_region_check(self, alert_on_no_unapproved: bool, include_channel_mention_on_alert: bool) -> None:
+        logging.info('Handling Check Unapproved (regions).')
+        unapprovedUpdateCount = self.gravity_forms.get_unapproved_count(self.gravity_forms.FORM_ID_REGION)
+
+        if unapprovedUpdateCount == 0:
+            logging.info('No unapproved.')
+            if alert_on_no_unapproved:
+                self.slack.post_msg_to_channel(text='There are no unapproved regions.')
+            
+            return
+        
+        unapprovedCounts = []
+        if unapprovedUpdateCount > 0:
+            unapprovedCounts.append(str(unapprovedUpdateCount) + ' <' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + self.gravity_forms.FORM_ID_REGION + '|unapproved>')
+        
+        if include_channel_mention_on_alert:
+            message_intro = '<!channel>, there are unapproved regions: '
+        else:
+            message_intro = 'There are unapproved regions: '
+
+        message = str(unapprovedUpdateCount) + '\n<' + self.gravity_forms.BASE_URL + '/wp-admin/admin.php?page=gf_entries&filter=gv_unapproved&id=' + self.gravity_forms.FORM_ID_REGION + '|Unapproved Regions>\n<https://mapstats.f3nation.com|Regions with no workout (bottom left)>'
+
+        blocks = Slack.start_blocks()
+        blocks.append(Slack.get_block_section(message_intro + message))
+
+        self.slack.post_msg_to_channel(text='There are unapproved regions!', blocks=blocks)
         logging.info('Sent unapproved counts to Slack. Done handling.')

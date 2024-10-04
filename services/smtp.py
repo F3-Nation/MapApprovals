@@ -22,6 +22,7 @@ class SMTP:
         message['Subject'] = subject
         message['From'] = self._EMAIL_FROM_ADDRESS
         message['To'] = ', '.join(toEmails)
+        message['Reply-To'] = "map-admins@f3nation.com"
         message.set_content(body, subtype='html')
 
         server.send_message(message)

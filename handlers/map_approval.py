@@ -302,17 +302,17 @@ class MapApprovalHandler:
                 weekday = entry['14']
                 time = entry['4']
                 workout_type = entry['5']
+
+                deleteEntry['is_approved'] = "1"
+                deleteEntry['is_read'] = "1"
+                logging.info('Marking delete request entry ' + deleteEntryId + ' as read and approved.')
+                self.gravity_forms.update_entry(deleteEntryId, deleteEntry)
                 
                 self.smtp.send_email('Map Pin Deleted', [submitter_email], '<div style="display: none; max-height: 0px; overflow: hidden;">Delete -> ' + workout_name + ' @ ' + region + '</div><div style="display: none; max-height: 0px; overflow: hidden;">&#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;</div><p>Your request to remove a workout from <a href="https://map.f3nation.com">the map</a> has been approved; it should disappear within the hour. If you deleted this by mistake, or have any other issues, please <a href="mailto:map-admins@f3nation.com">email us</a>.</p><table border="1" style="border-collapse:collapse" cellpadding="5"><tr><td><b>Region</b></td><td>' + region + '</td></tr><tr><td><b>Workout Name</b></td><td>' + workout_name + '</td></tr><tr><td><b>Weekday</b></td><td>' + weekday + '</td></tr><tr><td><b>Time</b></td><td>' + time + '</td></tr><tr><td><b>Type</b></td><td>' + workout_type + '</td></tr><tr><td><b>Reason for deletion</b></td><td>' + reason + '</td></tr><tr><td><b>Submitter</b></td><td>' + submitter_name + '</td></tr><tr><td><b>Submitter Email</b></td><td>' + submitter_email + '</td></tr><tr><td><b>Request Created</b></td><td>' + date_created + '</td></tr><tr><td><b>Request Updated</b></td><td>' + date_updated + '</td></tr><tr><td><b>Workout ID</b></td><td>' + entryId + '</td></tr></table>')
 
                 logging.info('Entry deleted, action logged to Slack, requestor emailed.')
             else:
                 self.slack.post_msg_to_channel(text='Workout deletion failed! ' + user_name + ' tried to send it to trash, the system failed. Call admin.', thread_ts=body['container']['message_ts'])
-
-            deleteEntry['is_approved'] = "1"
-            deleteEntry['is_read'] = "1"
-            logging.info('Marking delete request entry ' + deleteEntryId + ' as read and approved.')
-            self.gravity_forms.update_entry(deleteEntryId, deleteEntry)
 
         elif action == Action_Value.RejectDelete.name:
             logging.info('Action: Reject Delete')

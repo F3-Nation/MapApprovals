@@ -256,7 +256,7 @@ class MapApprovalHandler:
             logging.info('Action: Refresh')
 
             entryId = action_value_pieces[1]
-            entry = self.gravity_forms.get_entry(entryId)
+            entry = self.gravity_forms.get_entry(entryId, True)
             blocks = self._build_workout_slack_blocks(entry=entry)
             self.slack.replace_msg(original_message=body['message'], ts=body['container']['message_ts'], blocks=blocks)
 

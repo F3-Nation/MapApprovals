@@ -1,4 +1,5 @@
 import os
+import logging
 import requests
 import datetime
 import pytz
@@ -21,9 +22,13 @@ class GravityForms:
         return int(body['total_count'])
     
 
-    def get_entry(self, entryId: str) -> dict:
+    def get_entry(self, entryId: str, print_response: bool = False) -> dict:
         response = requests.get(self.BASE_URL + '/wp-json/gf/v2/entries/' + entryId, auth=(self.KEY, self.SECRET), headers=self.headers)
         response.encoding = 'utf-8-sig'
+
+        if print_response:
+            logging.info(response.content)
+        
         entry = response.json()
 
         return entry
